@@ -1,111 +1,107 @@
-## **Opis projekta**
+## **Project Description**
 
-Projekat omogućava rad sa više resursa: **Klijent, Račun, Kartica, TipKartice, TipRačuna, Transakcija, Zaposleni, Kredit.**  
-Za svaki resurs implementirane su **CRUD** operacije (Create, Read, Update, Delete), uz validaciju, obradu izuzetaka i logovanje.
+The project provides operations for multiple resources: **Client, Account, Card, CardType, AccountType, Transaction, Employee, Loan.**  
+Each resource implements full **CRUD** functionality (Create, Read, Update, Delete), along with data validation, exception handling, and logging.
 
 ---
 
-## **Tehnologije i alati**
+## **Technologies and Tools**
 
 - MuleSoft Anypoint Studio  
 - RAML (RESTful API Modeling Language)  
-- MySQL baza podataka  
-- JSON i XML formati razmene podataka  
-
-
----
-
-
-
-## **POST metode**
-
-Svaka POST metoda obezbeđuje:  
-- vraćanje greške ako nedostaje podatak ili je pogrešnog tipa,  
-- vraćanje greške ako se unese nepostojeći strani ključ,  
-- obradu duplih vrednosti za podatke koji moraju biti jedinstveni (npr. JMBG, username, broj računa).  
-
-**POST: TRANSAKCIJA** – dodaje novu transakciju u bazu.  
-Svaka transakcija se upisuje u fajl sa prefiksom *internalERP* u XML formatu (lokacija: `src/main/resources/internalERP`).  
-Ako je transakcija tipa *prenos* i iznos veći od 100, dodatno se upisuje i u JSON fajl sa prefiksom *chineseERP* (lokacija: `src/main/resources/chineseERP`).  
-U tom slučaju, vrednost iznosa se u bazi i fajlu duplira.  
-
-
-## **PUT metode**
-
-Svaka PUT metoda obezbeđuje:  
-- vraćanje greške ako nedostaje podatak ili je pogrešnog tipa,  
-- vraćanje greške ako se unese nepostojeći strani ključ,  
-- vraćanje odgovora da li je podatak ažuriran ili kreiran kao novi.  
-
-**PUT** metode proveravaju da li podatak postoji u bazi:  
-- ako postoji – ažurira se,  
-- ako ne postoji – dodaje se kao novi.  
+- MySQL database  
+- JSON and XML data exchange formats  
 
 ---
 
-## **GET metode**
+## **POST Methods**
 
-Svaka GET metoda:  
-- vraća sve podatke iz tabele,  
-- vraća poruku ako tabela nema nijedan podatak.  
+Each POST method ensures:  
+- returning an error if a required field is missing or of an incorrect type,  
+- returning an error if a non-existing foreign key is entered,  
+- handling duplicate values for fields that must be unique (e.g., JMBG, username, account number).  
 
-**GET: KLIJENT** – omogućava filtriranje po headeru `active` (true / false).  
-Ako je uneta neka druga vrednost, vraća se poruka o grešci.  
-Ako header nije naveden, vraćaju se svi klijenti.  
-
-
----
-
-## **GET BY ID metode**
-
-Svaka GET BY ID metoda vraća podatak po ID-u i:  
-- vraća poruku ako podatak ne postoji u bazi,  
-- upisuje preuzeti podatak u log fajl ako je potrebno.  
-
-**GET BY ID: KLIJENT** – upisuje svaki pronađeni klijent u fajl `klijenti_log.json`.  
-Isto važi za ostale entitete: **Račun, Kartica, TipKartice, TipRačuna, Transakcija, Zaposleni, Kredit.**
+**POST: TRANSACTION** – adds a new transaction to the database.  
+Each transaction is written to a file with the *internalERP* prefix in XML format (location: `src/main/resources/internalERP`).  
+If the transaction type is *transfer* and the amount exceeds 100, it is also written to a JSON file with the *chineseERP* prefix (location: `src/main/resources/chineseERP`).  
+In such cases, the transaction amount is doubled in both the database and the file.  
 
 ---
 
-## **DELETE metode**
+## **PUT Methods**
 
-Svaka DELETE metoda:  
-- briše podatak po ID-u,  
-- vraća odgovor o uspehu brisanja,  
-- ako ID ne postoji, vraća poruku o grešci,  
-- ako je podatak strani ključ u drugim tabelama, brišu se i povezani podaci.  
+Each PUT method ensures:  
+- returning an error if a required field is missing or of an incorrect type,  
+- returning an error if a non-existing foreign key is entered,  
+- returning a response indicating whether the record was updated or newly created.  
 
----
-
-## **Struktura baze podataka**
-
-Baza podataka obuhvata sledeće tabele:  
-- **Klijent** – podaci o korisnicima (ID, ime, prezime, aktivnost, pol, korisničko ime, datum rođenja)  
-- **Račun** – povezan sa klijentom  
-- **Kartica** – povezana sa računom  
-- **TipKartice** i **TipRačuna** – referentne vrednosti  
-- **Transakcija** – sadrži sve transakcije i povezana polja  
-- **Zaposleni** i **Kredit** – dodatni entiteti sistema  
+**PUT** methods verify whether the record already exists in the database:  
+- if it exists – it is updated,  
+- if it does not exist – it is created as a new record.  
 
 ---
 
-## **Statusni kodovi i greške**
+## **GET Methods**
 
-- **200 OK** – uspešna operacija  
-- **201 Created** – novi resurs je kreiran  
-- **400 Bad Request** – neispravan zahtev (nedostaje podatak, pogrešan tip)  
-- **404 Not Found** – nepostojeći podatak  
-- **409 Conflict** – duplikat podataka  
-- **500 Internal Server Error** – greška u sistemu  
+Each GET method:  
+- returns all records from the table,  
+- returns a message if the table is empty.  
+
+**GET: CLIENT** – allows filtering by the `active` header (true / false).  
+If another value is provided, an error message is returned.  
+If no header is provided, all clients are returned.  
 
 ---
 
-## **Naučene veštine i znanja primenjena kroz projekat**
+## **GET BY ID Methods**
 
-- Dizajn i implementacija REST API servisa  
-- Korišćenje HTTP metoda i statusnih kodova  
-- Integracija sistema sa ERP okruženjima (XML / JSON zapis)  
-- Validacija podataka i obrada izuzetaka  
-- Rad sa bazom podataka i SQL skriptama  
-- Verziona kontrola i rad sa GitHub platformom  
+Each GET BY ID method retrieves a record by its ID and:  
+- returns a message if the record does not exist in the database,  
+- logs the retrieved record to a file when applicable.  
 
+**GET BY ID: CLIENT** – logs each retrieved client into the `clients_log.json` file.  
+The same logic applies to other entities: **Account, Card, CardType, AccountType, Transaction, Employee, Loan.**
+
+---
+
+## **DELETE Methods**
+
+Each DELETE method:  
+- deletes a record by its ID,  
+- returns a response confirming successful deletion,  
+- returns an error message if the ID does not exist,  
+- deletes all related records if the data serves as a foreign key in other tables.  
+
+---
+
+## **Database Structure**
+
+The database consists of the following tables:  
+- **Client** – user data (ID, first name, last name, activity status, gender, username, date of birth)  
+- **Account** – linked to the client  
+- **Card** – linked to the account  
+- **CardType** and **AccountType** – reference tables  
+- **Transaction** – contains all transactions and related fields  
+- **Employee** and **Loan** – additional entities within the system  
+
+---
+
+## **Status Codes and Error Handling**
+
+- **200 OK** – operation successful  
+- **201 Created** – new resource created  
+- **400 Bad Request** – invalid request (missing or invalid field)  
+- **404 Not Found** – record does not exist  
+- **409 Conflict** – duplicate data entry  
+- **500 Internal Server Error** – system error  
+
+---
+
+## **Skills and Knowledge Applied Through the Project**
+
+- Design and implementation of REST API services  
+- Use of HTTP methods and status codes  
+- Integration with ERP systems (XML / JSON data logging)  
+- Data validation and exception handling  
+- Working with databases and SQL scripts  
+- Version control and collaboration using GitHub  
