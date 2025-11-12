@@ -1,0 +1,98 @@
+2025-09-25T13:14:50.6044069+02:00 - {
+  "KlijentID": 12,
+  "Ime": "Ana",
+  "Prezime": "Savkovic",
+  "JMBG": "1234567890333",
+  "Adresa": "Nemanjina 10",
+  "Grad": "Beograd",
+  "Drzava": "Srbija",
+  "KontaktTelefon": "0611234567",
+  "Pol": "female",
+  "DatumRodjenja": "1995-03-15",
+  "Aktivan": true,
+  "Username": "ana.annnic"
+}
+2025-09-25T13:15:36.1783529+02:00 - {
+  "KlijentID": 2,
+  "Ime": "Maja",
+  "Prezime": "Panic",
+  "JMBG": "1234567890124",
+  "Adresa": "Banjalucka 45",
+  "Grad": "Bijeljina",
+  "Drzava": "BiH",
+  "KontaktTelefon": "0621114786",
+  "Pol": "female",
+  "DatumRodjenja": "1990-08-20",
+  "Aktivan": true,
+  "Username": "majaP"
+}
+2025-09-27T14:40:58.3582544+02:00 - {
+  "KlijentID": 1,
+  "Ime": "Jovana",
+  "Prezime": "Jovic",
+  "JMBG": "1234567890123",
+  "Adresa": "Bulevar Oslobodjenja 45",
+  "Grad": "Novi Sad",
+  "Drzava": "Srbija",
+  "KontaktTelefon": "0641112233",
+  "Pol": "male",
+  "DatumRodjenja": "1980-05-12",
+  "Aktivan": true,
+  "Username": "peraP"
+}
+2025-09-27T16:14:29.9009654+02:00 - {
+  "KlijentID": 2,
+  "Ime": "Maja",
+  "Prezime": "Panic",
+  "JMBG": "1234567890124",
+  "Adresa": "Banjalucka 45",
+  "Grad": "Bijeljina",
+  "Drzava": "BiH",
+  "KontaktTelefon": "0621114786",
+  "Pol": "female",
+  "DatumRodjenja": "1990-08-20",
+  "Aktivan": true,
+  "Username": "majaP"
+}
+2025-09-27T16:15:08.6168612+02:00 - {
+  "KlijentID": 1,
+  "Ime": "Jovana",
+  "Prezime": "Jovic",
+  "JMBG": "1234567890123",
+  "Adresa": "Bulevar Oslobodjenja 45",
+  "Grad": "Novi Sad",
+  "Drzava": "Srbija",
+  "KontaktTelefon": "0641112233",
+  "Pol": "male",
+  "DatumRodjenja": "1980-05-12",
+  "Aktivan": true,
+  "Username": "peraP"
+}
+2025-10-05T23:49:24.7764126+02:00 - {
+  "KlijentID": 56,
+  "Ime": "Ana",
+  "Prezime": "Savkovic",
+  "JMBG": "1234567890333",
+  "Adresa": "Nemanjina 10",
+  "Grad": "Beograd",
+  "Drzava": "Srbija",
+  "KontaktTelefon": "0611234567",
+  "Pol": "female",
+  "DatumRodjenja": "1995-03-15",
+  "Aktivan": true,
+  "Username": "ana.annnic"
+}
+2025-10-06T22:51:52.8597314+02:00 - {
+  "KlijentID": 56,
+  "Ime": "Jovana",
+  "Prezime": "Jov",
+  "JMBG": "1234344770123",
+  "Adresa": "Bulevar Oslobodjenja 45",
+  "Grad": "Novi Sad",
+  "Drzava": "Srbija",
+  "KontaktTelefon": "0641a112233",
+  "Pol": "male",
+  "DatumRodjenja": "1990-05-10",
+  "Aktivan": true,
+  "Username": "jjovovi3c"
+}

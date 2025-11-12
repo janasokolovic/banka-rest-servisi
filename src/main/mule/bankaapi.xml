@@ -1,0 +1,304 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd 
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd "
+
+>
+  
+  
+  
+  
+    <flow name="bankaapi-main">
+        <http:listener config-ref="bankaapi-httpListenerConfig" path="/api/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:router config-ref="bankaapi-config" />
+        
+        <error-handler>
+          <on-error-propagate type="APIKIT:BAD_REQUEST" when="#[error.description contains 'required key']">
+    <ee:transform doc:name="Missing field">
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ error: "Nedostaje obavezan podatak u unosu." }]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+            <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+        </ee:variables>
+    </ee:transform>
+</on-error-propagate>
+
+<on-error-propagate type="APIKIT:BAD_REQUEST" when="#[error.description contains 'expected type']">
+    <ee:transform doc:name="Wrong type">
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ error: "Unet je podatak pogrešnog tipa." }]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+            <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+        </ee:variables>
+    </ee:transform>
+</on-error-propagate>
+
+
+<on-error-propagate type="APIKIT:BAD_REQUEST">
+    <ee:transform doc:name="Generic bad request">
+        <ee:message>
+            <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ error: "Neispravan zahtev." }]]></ee:set-payload>
+        </ee:message>
+        <ee:variables>
+            <ee:set-variable variableName="httpStatus">400</ee:set-variable>
+        </ee:variables>
+    </ee:transform>
+</on-error-propagate>
+
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:METHOD_NOT_ALLOWED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Method not allowed"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">405</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate> 
+            <on-error-propagate type="APIKIT:NOT_ACCEPTABLE" when="#[error.description contains 'Duplicate entry']">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not acceptable"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">406</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:UNSUPPORTED_MEDIA_TYPE">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Unsupported media type"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">415</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+            <on-error-propagate type="APIKIT:NOT_IMPLEMENTED">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Not Implemented"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">501</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+    <flow name="bankaapi-console">
+        <http:listener config-ref="bankaapi-httpListenerConfig" path="/console/*">
+            <http:response statusCode="#[vars.httpStatus default 200]">
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:response>
+            <http:error-response statusCode="#[vars.httpStatus default 500]">
+                <http:body>#[payload]</http:body>
+                <http:headers>#[vars.outboundHeaders default {}]</http:headers>
+            </http:error-response>
+        </http:listener>
+        <apikit:console config-ref="bankaapi-config" />
+        <error-handler>
+            <on-error-propagate type="APIKIT:NOT_FOUND">
+                <ee:transform doc:name="Transform Message">
+                    <ee:message>
+                        <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Resource not found"}]]></ee:set-payload>
+                    </ee:message>
+                    <ee:variables>
+                        <ee:set-variable variableName="httpStatus">404</ee:set-variable>
+                    </ee:variables>
+                </ee:transform>
+            </on-error-propagate>
+        </error-handler>
+    </flow>
+ 
+ <flow name="put:\zaposleni\(id):application\json:bankaapi-config">
+    <flow-ref name="put-zaposleni" />
+</flow>
+<flow name="put:\kredit\(id):application\json:bankaapi-config">
+    <flow-ref name="put-kredit" />
+</flow>
+<flow name="put:\transakcija\(id):application\json:bankaapi-config">
+    <flow-ref name="put-transakcija"/>
+</flow>
+<flow name="put:\racun\(id):application\json:bankaapi-config">
+    <flow-ref name="put-racun"/>
+</flow>
+<flow name="put:\tipKartice\(id):application\json:bankaapi-config">
+    <flow-ref name="put-tipKartice"/>
+</flow>
+<flow name="put:\kartica\(id):application\json:bankaapi-config">
+    <flow-ref name="put-kartica"/>
+</flow>
+<flow name="put:\tipRacuna\(id):application\json:bankaapi-config">
+    <flow-ref name="put-tipRacuna"/>
+</flow>
+<flow name="put:\klijent\(id):application\json:bankaapi-config">
+    <flow-ref name="put-klijent"/>
+</flow>
+
+
+<flow name="post:\klijent:application\json:bankaapi-config">
+    <flow-ref name="post-klijent"/>
+</flow>
+<flow name="post:\racun:application\json:bankaapi-config">
+    <flow-ref name="post-racun"/>
+</flow>
+
+<flow name="post:\kartica:application\json:bankaapi-config">
+    <flow-ref name="post-kartica"/>
+</flow>
+<flow name="post:\tipKartice:application\json:bankaapi-config">
+    <flow-ref name="post-tipKartice"/>
+</flow>
+
+<flow name="post:\tipRacuna:application\json:bankaapi-config">
+    <flow-ref name="post-tipRacuna"/>
+</flow>
+
+<flow name="post:\transakcija:application\json:bankaapi-config">
+    <flow-ref name="post-transakcija"/>
+</flow>
+
+<flow name="post:\zaposleni:application\json:bankaapi-config">
+    <flow-ref name="post-zaposleni"/>
+</flow>
+
+<flow name="post:\kredit:application\json:bankaapi-config">
+    <flow-ref name="post-kredit"/>
+</flow>
+    
+    
+    
+<flow name="get:\kartica:bankaapi-config">
+    <flow-ref name="get-kartica" />
+</flow>
+<flow name="get:\kredit:bankaapi-config">
+    <flow-ref name="get-kredit"/>
+</flow>
+
+<flow name="get:\racun:bankaapi-config">
+    <flow-ref name="get-racun"/>
+</flow>
+
+<flow name="get:\tipKartice:bankaapi-config">
+    <flow-ref name="get-tipKartice"/>
+</flow>
+<flow name="get:\tipRacuna:bankaapi-config">
+    <flow-ref name="get-tipRacuna"/>
+</flow>
+<flow name="get:\zaposleni:bankaapi-config">
+    <flow-ref name="get-zaposleni" />
+</flow>
+<flow name="get:\transakcija:bankaapi-config">
+    <flow-ref name="get-transakcija" />
+</flow>
+<flow name="get:\klijent:bankaapi-config">
+    <flow-ref name="get-klijent" />
+</flow>
+<flow name="get:\racun\(id):bankaapi-config">
+    <flow-ref name="getId-racun" />
+</flow>
+<flow name="get:\kredit\(id):bankaapi-config">
+    <flow-ref name="getId-kredit" />
+</flow>
+
+<flow name="get:\tipRacuna\(id):bankaapi-config">
+    <flow-ref name="getId-tipRacuna" />
+</flow>
+
+<flow name="get:\tipKartice\(id):bankaapi-config">
+    <flow-ref name="getId-tipKartice" />
+</flow>
+
+<flow name="get:\transakcija\(id):bankaapi-config">
+    <flow-ref name="getId-transakcija" />
+</flow>
+<flow name="get:\kartica\(id):bankaapi-config">
+    <flow-ref name="getId-kartica" />
+</flow>
+<flow name="get:\klijent\(id):bankaapi-config">
+    <flow-ref name="getId-klijent" />
+</flow>
+<flow name="get:\zaposleni\(id):bankaapi-config">
+    <flow-ref name="getId-zaposleni" />
+</flow>
+
+<flow name="delete:\kredit\(id):bankaapi-config">
+    <flow-ref name="delete-kredit"/>
+</flow>
+ <flow name="delete:\zaposleni\(id):bankaapi-config">
+  <flow-ref name="delete-zaposleni"/>
+</flow>
+<flow name="delete:\kartica\(id):bankaapi-config">
+ <flow-ref name="delete-kartica"/>
+</flow>
+<flow name="delete:\klijent\(id):bankaapi-config">
+ <flow-ref name="delete-klijent"/>
+</flow>
+<flow name="delete:\racun\(id):bankaapi-config">
+    <flow-ref name="delete-racun"/>
+</flow> 
+ <flow name="delete:\tipKartice\(id):bankaapi-config">
+        <flow-ref name="delete-tipKartice"/>
+</flow> 
+<flow name="delete:\tipRacuna\(id):bankaapi-config">
+       <flow-ref name="delete-tipRacuna"/>
+</flow> 
+<flow name="delete:\transakcija\(id):bankaapi-config">
+       <flow-ref name="delete-transakcija"/>
+</flow> 
+ 
+
+</mule>

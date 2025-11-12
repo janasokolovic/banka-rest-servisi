@@ -1,0 +1,9 @@
+{
+  "TransakcijaID": 45,
+  "KlijentID": 1,
+  "RacunID": 12,
+  "Iznos": 145.75,
+  "Vrsta": "prenos",
+  "Datum": "2025-09-23T15:30:00+02:00",
+  "Iznos": 291.5
+}

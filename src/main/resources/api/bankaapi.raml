@@ -1,0 +1,435 @@
+#%RAML 1.0
+title: BankaAPI
+version: v1
+baseUri: http://localhost:8081/api
+mediaType: application/json
+
+types:
+  Klijent:
+    type: object
+    properties:
+      KlijentID: integer
+      Ime: string
+      Prezime: string
+      JMBG: string
+      Adresa: string
+      Grad: string
+      Drzava: string
+      KontaktTelefon: string
+      Pol:
+        type: string
+        enum: [male, female]
+      DatumRodjenja: date-only
+      Aktivan: boolean
+      Username: string
+    example:
+      KlijentID: 1
+      Ime: "Petar"
+      Prezime: "Petrovic"
+      JMBG: "1234567890123"
+      Adresa: "Racanska 5"
+      Grad: "Bijeljina"
+      Drzava: "BiH"
+      KontaktTelefon: "0621114785"
+      Pol: "male"
+      DatumRodjenja: 1985-06-15
+      Aktivan: true
+      Username: "ppetrovic"
+
+  Transakcija:
+    type: object
+    properties:
+      TransakcijaID: integer
+      KlijentID: integer
+      RacunID: integer
+      Iznos: number
+      Vrsta:
+        type: string
+        enum: [uplata, isplata, prenos]
+      Datum: datetime
+    example:
+      TransakcijaID: 1
+      KlijentID: 1
+      RacunID: 101
+      Iznos: 500.00
+      Vrsta: "uplata"
+      Datum: 2025-09-20T12:30:00Z
+
+  Racun:
+    type: object
+    properties:
+      RacunID: integer
+      BrojRacuna: string
+      Stanje: number
+      KlijentID: integer
+      TipRacunaID: integer
+
+  Kartica:
+    type: object
+    properties:
+      KarticaID: integer
+      BrorRacuna: string
+      BrojKartice: string
+      DatumIsteka: datetime
+      RacunID: integer
+      TipKarticeID: integer
+
+  TipRacuna:
+    type: object
+    properties:
+      TipRacunaID: integer
+      Naziv: string
+      Aktivno: boolean
+
+  TipKartice:
+    type: object
+    properties:
+      TipKarticeID: integer
+      Naziv: string
+
+  Zaposleni:
+    type: object
+    properties:
+      ZaposleniID: integer
+      Ime: string
+      Prezime: string
+      JMBG: string
+      Odjeljenje: string
+      KontaktTelefon: string
+
+  # NOVO: tip za update bez ID
+  ZaposleniUpdate:
+    type: object
+    properties:
+      Ime: string
+      Prezime: string
+      JMBG: string
+      Odjeljenje: string
+      KontaktTelefon: string
+
+  Kredit:
+    type: object
+    properties:
+      KreditID: integer
+      Iznos: number
+      PeriodOtplate: integer
+      Kamata: number
+      KlijentID: integer
+      RacunID: integer
+
+# ===================== RESURSI =====================
+
+/klijent:
+  get:
+    description: Vraca sve klijente, moze filter po statusu Aktivan
+    queryParameters:
+      aktivan:
+        type: boolean
+        required: false
+        description: Filtrira po aktivnom statusu (true/false)
+    responses:
+      200:
+        body:
+          application/json:
+            type: Klijent[]
+  post:
+    description: Dodaje novog klijenta
+    body:
+      application/json:
+        type: Klijent
+    responses:
+      201:
+        body:
+          application/json:
+            type: Klijent
+  /{id}:
+    get:
+      description: Vraca klijenta po ID-ju
+      responses:
+        200:
+          body:
+            application/json:
+              type: Klijent
+        404:
+          description: Klijent nije pronadjen
+    put:
+      description: Azurira klijenta po ID-ju ili kreira ako ne postoji
+      body:
+        application/json:
+          type: Klijent
+      responses:
+        200:
+          body:
+            application/json:
+              type: Klijent
+    delete:
+      description: Brise klijenta po ID-ju
+      responses:
+        204:
+          description: Klijent obrisan
+        404:
+          description: Klijent nije pronadjen
+
+/transakcija:
+  get:
+    description: Vraca sve transakcije
+    responses:
+      200:
+        body:
+          application/json:
+            type: Transakcija[]
+  post:
+    description: Dodaje novu transakciju
+    body:
+      application/json:
+        type: Transakcija
+    responses:
+      201:
+        body:
+          application/json:
+            type: Transakcija
+  /{id}:
+    get:
+      description: Vraca transakciju po ID-ju
+      responses:
+        200:
+          body:
+            application/json:
+              type: Transakcija
+        404:
+          description: Transakcija nije pronadjena
+    put:
+      description: Azurira transakciju po ID-ju ili kreira ako ne postoji
+      body:
+        application/json:
+          type: Transakcija
+      responses:
+        200:
+          body:
+            application/json:
+              type: Transakcija
+    delete:
+      description: Brise transakciju po ID-ju
+      responses:
+        204:
+          description: Transakcija obrisana
+        404:
+          description: Transakcija nije pronadjena
+
+/racun:
+  get:
+    responses:
+      200:
+        body:
+          application/json:
+            type: Racun[]
+  post:
+    body:
+      application/json:
+        type: Racun
+    responses:
+      201:
+        body:
+          application/json:
+            type: Racun
+  /{id}:
+    get:
+      responses:
+        200:
+          body:
+            application/json:
+              type: Racun
+    put:
+      body:
+        application/json:
+          type: Racun
+      responses:
+        200:
+          body:
+            application/json:
+              type: Racun
+    delete:
+      responses:
+        204: {}
+
+/kartica:
+  get:
+    responses:
+      200:
+        body:
+          application/json:
+            type: Kartica[]
+  post:
+    body:
+      application/json:
+        type: Kartica
+    responses:
+      201:
+        body:
+          application/json:
+            type: Kartica
+  /{id}:
+    get:
+      responses:
+        200:
+          body:
+            application/json:
+              type: Kartica
+    put:
+      body:
+        application/json:
+          type: Kartica
+      responses:
+        200:
+          body:
+            application/json:
+              type: Kartica
+    delete:
+      responses:
+        204: {}
+
+/tipRacuna:
+  get:
+    responses:
+      200:
+        body:
+          application/json:
+            type: TipRacuna[]
+  post:
+    body:
+      application/json:
+        type: TipRacuna
+    responses:
+      201:
+        body:
+          application/json:
+            type: TipRacuna
+  /{id}:
+    get:
+      responses:
+        200:
+          body:
+            application/json:
+              type: TipRacuna
+    put:
+      body:
+        application/json:
+          type: TipRacuna
+      responses:
+        200:
+          body:
+            application/json:
+              type: TipRacuna
+    delete:
+      responses:
+        204: {}
+
+/tipKartice:
+  get:
+    responses:
+      200:
+        body:
+          application/json:
+            type: TipKartice[]
+  post:
+    body:
+      application/json:
+        type: TipKartice
+    responses:
+      201:
+        body:
+          application/json:
+            type: TipKartice
+  /{id}:
+    get:
+      responses:
+        200:
+          body:
+            application/json:
+              type: TipKartice
+    put:
+      body:
+        application/json:
+          type: TipKartice
+      responses:
+        200:
+          body:
+            application/json:
+              type: TipKartice
+    delete:
+      responses:
+        204: {}
+
+/zaposleni:
+  get:
+    responses:
+      200:
+        body:
+          application/json:
+            type: Zaposleni[]
+  post:
+    body:
+      application/json:
+        type: Zaposleni
+    responses:
+      201:
+        body:
+          application/json:
+            type: Zaposleni
+  /{id}:
+    get:
+      responses:
+        200:
+          body:
+            application/json:
+              type: Zaposleni
+    put:
+      description: Azurira zaposlenog po ID-ju
+      body:
+        application/json:
+          type: ZaposleniUpdate   # <- nova definicija bez ID
+      responses:
+        200:
+          body:
+            application/json:
+              type: Zaposleni
+    delete:
+      responses:
+        204: {}
+
+/kredit:
+  get:
+    responses:
+      200:
+        body:
+          application/json:
+            type: Kredit[]
+  post:
+    body:
+      application/json:
+        type: Kredit
+    responses:
+      201:
+        body:
+          application/json:
+            type: Kredit
+  /{id}:
+    get:
+      responses:
+        200:
+          body:
+            application/json:
+              type: Kredit
+    put:
+      body:
+        application/json:
+          type: Kredit
+      responses:
+        200:
+          body:
+            application/json:
+              type: Kredit
+    delete:
+      responses:
+        204: {}
+

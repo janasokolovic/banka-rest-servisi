@@ -1,0 +1,3791 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:dw="http://www.mulesoft.org/schema/mule/ee/dw"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file"
+	xmlns:db="http://www.mulesoft.org/schema/mule/db"
+	xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:logger="http://www.mulesoft.org/schema/mule/logger"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:ce="http://www.mulesoft.org/schema/mule/custom-errors"
+	xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/dw http://www.mulesoft.org/schema/mule/ee/dw/current/dw.xsd 
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd 
+http://www.mulesoft.org/schema/mule/db http://www.mulesoft.org/schema/mule/db/current/mule-db.xsd 
+http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/logger http://www.mulesoft.org/schema/mule/logger/current/mule-logger.xsd 
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/custom-errors
+http://www.mulesoft.org/schema/mule/custom-errors/current/mule-custom-errors.xsd">
+
+
+
+	<flow name="put-zaposleni">
+
+		
+		<ee:transform doc:name="Set ZaposleniID">
+			<ee:variables>
+				<ee:set-variable variableName="ZaposleniID">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<ee:transform doc:name="Set Data Variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:select config-ref="Database_Config"
+			doc:name="Select Zaposleni">
+			<db:sql><![CDATA[
+            SELECT * 
+            FROM Zaposleni 
+            WHERE ZaposleniID = :ZaposleniID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{ "ZaposleniID": vars.ZaposleniID }]]]></db:input-parameters>
+		</db:select>
+
+		
+		<choice doc:name="Update or Insert Choice">
+
+		
+			<when expression="#[payload[0] != null]">
+				<db:update config-ref="Database_Config"
+					doc:name="Update Zaposleni">
+					<db:sql><![CDATA[
+                    UPDATE Zaposleni
+                    SET Ime = :Ime,
+                        Prezime = :Prezime,
+                        JMBG = :JMBG,
+                        Odjeljenje = :Odjeljenje,
+                        KontaktTelefon = :KontaktTelefon
+                    WHERE ZaposleniID = :ZaposleniID
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "ZaposleniID": vars.ZaposleniID,
+                    "Ime": vars.data.Ime,
+                    "Prezime": vars.data.Prezime,
+                    "JMBG": vars.data.JMBG,
+                    "Odjeljenje": vars.data.Odjeljenje,
+                    "KontaktTelefon": vars.data.KontaktTelefon
+                }]]]></db:input-parameters>
+				</db:update>
+
+				<ee:transform doc:name="Success Update">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Zaposleni ažuriran!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+
+			
+			<otherwise>
+				<db:insert config-ref="Database_Config"
+					doc:name="Insert Zaposleni">
+					<db:sql><![CDATA[
+                    INSERT INTO Zaposleni(ZaposleniID, Ime, Prezime, JMBG, Odjeljenje, KontaktTelefon)
+                    VALUES (:ZaposleniID, :Ime, :Prezime, :JMBG, :Odjeljenje, :KontaktTelefon)
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "ZaposleniID": vars.ZaposleniID,
+                    "Ime": vars.data.Ime,
+                    "Prezime": vars.data.Prezime,
+                    "JMBG": vars.data.JMBG,
+                    "Odjeljenje": vars.data.Odjeljenje,
+                    "KontaktTelefon": vars.data.KontaktTelefon
+                }]]]></db:input-parameters>
+				</db:insert>
+
+				<ee:transform doc:name="Success Insert">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Zaposleni kreiran!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+	
+		<logger level="INFO"
+			message="PUT Zaposleni #[vars.ZaposleniID] executed."
+			doc:name="Logger" />
+
+		
+	<error-handler>
+		
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'Duplicate entry']">
+				<ee:transform doc:name="Duplicate Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Zaposleni sa ovim brojem JMBG već postoji!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">409
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Generic Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Došlo je do greške pri kreiranju Zaposlenog!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+
+	</flow>
+
+
+
+	<flow name="put-kredit">
+
+	
+		<ee:transform doc:name="Set KreditID">
+			<ee:variables>
+				<ee:set-variable variableName="KreditID">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<ee:transform doc:name="Set Data Variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:select config-ref="Database_Config"
+			doc:name="Select Kredit">
+			<db:sql><![CDATA[
+            SELECT * 
+            FROM Kredit 
+            WHERE KreditID = :KreditID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{ "KreditID": vars.KreditID }]]]></db:input-parameters>
+		</db:select>
+
+	
+		<choice doc:name="Update or Insert Choice">
+
+			
+			<when expression="#[payload[0] != null]">
+				<db:update config-ref="Database_Config"
+					doc:name="Update Kredit">
+					<db:sql><![CDATA[
+                    UPDATE Kredit
+                    SET Iznos = :Iznos,
+                        PeriodOtplate = :PeriodOtplate,
+                        Kamata = :Kamata,
+                        KlijentID = :KlijentID,
+                        RacunID = :RacunID
+                    WHERE KreditID = :KreditID
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "KreditID": vars.KreditID,
+                    "Iznos": vars.data.Iznos,
+                    "PeriodOtplate": vars.data.PeriodOtplate,
+                    "Kamata": vars.data.Kamata,
+                    "KlijentID": vars.data.KlijentID,
+                    "RacunID": vars.data.RacunID
+                }]]]></db:input-parameters>
+				</db:update>
+
+				<ee:transform doc:name="Success Update">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Kredit ažuriran!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+
+		
+			<otherwise>
+				<db:insert config-ref="Database_Config"
+					doc:name="Insert Kredit">
+					<db:sql><![CDATA[
+                    INSERT INTO Kredit(KreditID, Iznos, PeriodOtplate, Kamata, KlijentID, RacunID)
+                    VALUES (:KreditID, :Iznos, :PeriodOtplate, :Kamata, :KlijentID, :RacunID)
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "KreditID": vars.KreditID,
+                    "Iznos": vars.data.Iznos,
+                    "PeriodOtplate": vars.data.PeriodOtplate,
+                    "Kamata": vars.data.Kamata,
+                    "KlijentID": vars.data.KlijentID,
+                    "RacunID": vars.data.RacunID
+                }]]]></db:input-parameters>
+				</db:insert>
+
+				<ee:transform doc:name="Success Insert">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Kredit kreiran!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		<!-- Logger -->
+		<logger level="INFO"
+			message="PUT Kredit #[vars.KreditID] executed." doc:name="Logger" />
+		
+<error-handler>
+			
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'Duplicate entry']">
+				<ee:transform doc:name="Duplicate Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Kredit sa ovim brojem kartice već postoji!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">409
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<!-- Foreign key (400) -->
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'foreign key']">
+				<ee:transform doc:name="Foreign Key Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Ne postoji povezani RacunID ili KlijentID u bazi!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+		
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Generic Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Došlo je do greške pri kreiranju Kredita!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+		
+	</flow>
+
+	<flow name="put-transakcija">
+
+	
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="TransakcijaID">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<ee:transform doc:name="Normalize Datum for DB">
+			<ee:variables>
+				<ee:set-variable variableName="Datum"><![CDATA[%dw 2.0
+output application/java
+---
+(vars.data.Datum as DateTime)
+    as String {format: "yyyy-MM-dd HH:mm:ss"}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:select doc:name="Select Transakcija"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Transakcija WHERE TransakcijaID = :TransakcijaID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"TransakcijaID": vars.TransakcijaID}]]]></db:input-parameters>
+		</db:select>
+
+
+		<choice doc:name="Choice">
+			<when expression="#[payload[0] != null]">
+				<!-- Update -->
+				<db:update doc:name="Update Transakcija"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    UPDATE Transakcija
+                    SET
+                        KlijentID = :KlijentID,
+                        RacunID = :RacunID,
+                        Iznos = :Iznos,
+                        Vrsta = :Vrsta,
+                        Datum = :Datum
+                    WHERE TransakcijaID = :TransakcijaID
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "TransakcijaID": vars.TransakcijaID,
+                    "KlijentID": vars.data.KlijentID,
+                    "RacunID": vars.data.RacunID,
+                    "Iznos": vars.data.Iznos,
+                    "Vrsta": vars.data.Vrsta,
+                    "Datum": vars.Datum
+                }]]]></db:input-parameters>
+				</db:update>
+
+				<ee:transform doc:name="Success Update">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Transakcija ažurirana!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+
+			<otherwise>
+		
+				<db:insert doc:name="Insert Transakcija"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    INSERT INTO Transakcija(TransakcijaID, KlijentID, RacunID, Iznos, Vrsta, Datum)
+                    VALUES (:TransakcijaID, :KlijentID, :RacunID, :Iznos, :Vrsta, :Datum)
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "TransakcijaID": vars.TransakcijaID,
+                    "KlijentID": vars.data.KlijentID,
+                    "RacunID": vars.data.RacunID,
+                    "Iznos": vars.data.Iznos,
+                    "Vrsta": vars.data.Vrsta,
+                    "Datum": vars.Datum
+                }]]]></db:input-parameters>
+				</db:insert>
+
+				<ee:transform doc:name="Success Insert">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Transakcija kreirana!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		
+		<logger level="INFO"
+			message="PUT Transakcija #[vars.TransakcijaID] executed." />
+
+		
+		<error-handler>
+			<!-- Duplicate entry (409) -->
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'Duplicate entry']">
+				<ee:transform doc:name="Duplicate Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Transakcija sa ovim brojem kartice već postoji!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">409
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+		
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'foreign key']">
+				<ee:transform doc:name="Foreign Key Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Ne postoji povezani RacunID ili KlijentID u bazi!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Generic Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Došlo je do greške pri kreiranju Transakcije!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+	<flow name="put-racun">
+
+	
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="RacunID">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+
+		<db:select doc:name="Select Racun"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Racun WHERE RacunID = :RacunID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"RacunID": vars.RacunID}]]]></db:input-parameters>
+		</db:select>
+
+	
+		<choice doc:name="Choice">
+			<when expression="#[payload[0] != null]">
+				<!-- Update -->
+				<db:update doc:name="Update Racun"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    UPDATE Racun
+                    SET
+                        BrojRacuna = :BrojRacuna,
+                        Stanje = :Stanje,
+                        KlijentID = :KlijentID,
+                        TipRacunaID = :TipRacunaID
+                    WHERE RacunID = :RacunID
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "RacunID": vars.RacunID,
+                    "BrojRacuna": vars.data.BrojRacuna,
+                    "Stanje": vars.data.Stanje,
+                    "KlijentID": vars.data.KlijentID,
+                    "TipRacunaID": vars.data.TipRacunaID
+                }]]]></db:input-parameters>
+				</db:update>
+
+				<ee:transform doc:name="Success Update">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Racun ažuriran!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+
+			<otherwise>
+				
+				<db:insert doc:name="Insert Racun"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    INSERT INTO Racun(RacunID, BrojRacuna, Stanje, KlijentID, TipRacunaID)
+                    VALUES (:RacunID, :BrojRacuna, :Stanje, :KlijentID, :TipRacunaID)
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "RacunID": vars.RacunID,
+                    "BrojRacuna": vars.data.BrojRacuna,
+                    "Stanje": vars.data.Stanje,
+                    "KlijentID": vars.data.KlijentID,
+                    "TipRacunaID": vars.data.TipRacunaID
+                }]]]></db:input-parameters>
+				</db:insert>
+
+				<ee:transform doc:name="Success Insert">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Racun kreiran!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		
+		<logger level="INFO"
+			message="PUT Racun #[vars.RacunID] executed." />
+
+	
+		<error-handler>
+			
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'Duplicate entry']">
+				<ee:transform doc:name="Duplicate Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Racun sa ovim brojem racuna već postoji!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">409
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+		
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'foreign key']">
+				<ee:transform doc:name="Foreign Key Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Ne postoji povezani KlijentID ili TipRacunaID u bazi!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+		
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Generic Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Došlo je do greške pri kreiranju racuna!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+
+	</flow>
+
+
+	<flow name="put-tipKartice">
+
+		
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="TipKarticeID">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:select doc:name="Select TipKartice"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM TipKartice WHERE TipKarticeID = :TipKarticeID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"TipKarticeID": vars.TipKarticeID}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<choice doc:name="Choice">
+			<when expression="#[payload[0] != null]">
+				<!-- Update -->
+				<db:update doc:name="Update TipKartice"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    UPDATE TipKartice
+                    SET Naziv = :Naziv
+                    WHERE TipKarticeID = :TipKarticeID
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "TipKarticeID": vars.TipKarticeID,
+                    "Naziv": vars.data.Naziv
+                }]]]></db:input-parameters>
+				</db:update>
+
+				<ee:transform doc:name="Success Update">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Tip kartice ažuriran!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+
+			<otherwise>
+			
+				<db:insert doc:name="Insert TipKartice"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    INSERT INTO TipKartice(TipKarticeID, Naziv)
+                    VALUES (:TipKarticeID, :Naziv)
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "TipKarticeID": vars.TipKarticeID,
+                    "Naziv": vars.data.Naziv
+                }]]]></db:input-parameters>
+				</db:insert>
+
+				<ee:transform doc:name="Success Insert">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Tip kartice kreiran!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		
+		<logger level="INFO"
+			message="PUT TipKartice #[vars.TipKarticeID] executed." />
+
+		<!-- 6. Error handler -->
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="ANY" doc:name="Handle Errors">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var err = error.description
+---
+{
+    message: 
+        if (err contains "required key") "Fali obavezno polje!"
+        else if (err contains "expected type") "Pogrešan tip podatka!"
+        else "Došlo je do greške",
+    status: 400
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+
+	</flow>
+	<flow name="put-kartica">
+
+	
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="KarticaID">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		<!-- 3. Normalize DatumIsteka for DB -->
+		<ee:transform doc:name="Normalize DatumIsteka for DB">
+			<ee:variables>
+				<ee:set-variable variableName="DatumIsteka"><![CDATA[%dw 2.0
+output application/java
+---
+(vars.data.DatumIsteka as Date {format: "yyyy-MM-dd"})
+    as String {format: "yyyy-MM-dd"}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		<db:select doc:name="Select Kartica"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Kartica WHERE KarticaID = :KarticaID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"KarticaID": vars.KarticaID}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<choice doc:name="Choice">
+			<when expression="#[payload[0] != null]">
+				<!-- Update -->
+				<db:update doc:name="Update Kartica"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    UPDATE Kartica
+                    SET
+                        BrojKartice = :BrojKartice,
+                        DatumIsteka = :DatumIsteka,
+                        RacunID = :RacunID,
+                        TipKarticeID = :TipKarticeID
+                    WHERE KarticaID = :KarticaID
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "KarticaID": vars.KarticaID,
+                    "BrojKartice": vars.data.BrojKartice,
+                    "DatumIsteka": vars.DatumIsteka,
+                    "RacunID": vars.data.RacunID,
+                    "TipKarticeID": vars.data.TipKarticeID
+                }]]]></db:input-parameters>
+				</db:update>
+
+				<ee:transform doc:name="Success Update">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Kartica ažurirana!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+
+			<otherwise>
+			
+				<db:insert doc:name="Insert Kartica"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    INSERT INTO Kartica(KarticaID, BrojKartice, DatumIsteka, RacunID, TipKarticeID)
+                    VALUES (:KarticaID, :BrojKartice, :DatumIsteka, :RacunID, :TipKarticeID)
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "KarticaID": vars.KarticaID,
+                    "BrojKartice": vars.data.BrojKartice,
+                    "DatumIsteka": vars.DatumIsteka,
+                    "RacunID": vars.data.RacunID,
+                    "TipKarticeID": vars.data.TipKarticeID
+                }]]]></db:input-parameters>
+				</db:insert>
+
+				<ee:transform doc:name="Success Insert">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Kartica kreirana!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+	
+		<logger level="INFO"
+			message="PUT Kartica #[vars.KarticaID] executed." />
+
+
+		<error-handler>
+			
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'Duplicate entry']">
+				<ee:transform doc:name="Duplicate Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Kartica sa ovim brojem kartice već postoji!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">409
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+		
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'foreign key']">
+				<ee:transform doc:name="Foreign Key Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Ne postoji povezani RacunID ili TipKarticeID u bazi!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Generic Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Došlo je do greške pri kreiranju Kartice!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+
+	</flow>
+	
+	<flow name="put-tipRacuna">
+
+	
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="TipRacunaID">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Select TipRacuna"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM TipRacuna WHERE TipRacunaID = :TipRacunaID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"TipRacunaID": vars.TipRacunaID}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<choice doc:name="Choice">
+			<when expression="#[payload[0] != null]">
+				
+				<db:update doc:name="Update TipRacuna"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    UPDATE TipRacuna
+                    SET Naziv = :Naziv, Aktivno = :Aktivno
+                    WHERE TipRacunaID = :TipRacunaID
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "TipRacunaID": vars.TipRacunaID,
+                    "Naziv": vars.data.Naziv,
+                    "Aktivno": vars.data.Aktivno
+                }]]]></db:input-parameters>
+				</db:update>
+
+				<ee:transform doc:name="Success Update">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Tip racuna ažuriran!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+
+			<otherwise>
+			
+				<db:insert doc:name="Insert TipRacuna"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    INSERT INTO TipRacuna(TipRacunaID, Naziv, Aktivno)
+                    VALUES (:TipRacunaID, :Naziv, :Aktivno)
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "TipRacunaID": vars.TipRacunaID,
+                    "Naziv": vars.data.Naziv,
+                    "Aktivno": vars.data.Aktivno
+                }]]]></db:input-parameters>
+				</db:insert>
+
+				<ee:transform doc:name="Success Insert">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Tip racuna kreiran!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		
+		<logger level="INFO"
+			message="PUT TipRacuna #[vars.TipRacunaID] executed." />
+
+		
+<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="ANY" doc:name="Handle Errors">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var err = error.description
+---
+{
+    message: 
+        if (err contains "required key") "Fali obavezno polje!"
+        else if (err contains "expected type") "Pogrešan tip podatka!"
+        else "Došlo je do greške",
+    status: 400
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+		
+
+
+	</flow>
+	<flow name="put-klijent">
+
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="KlijentID">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Select Klijent"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Klijent WHERE KlijentID = :KlijentID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"KlijentID": vars.KlijentID}]]]></db:input-parameters>
+		</db:select>
+
+	
+		<choice doc:name="Choice">
+			<when expression="#[payload[0] != null]">
+				<!-- UPDATE -->
+				<db:update doc:name="Update Klijent"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    UPDATE Klijent
+                    SET
+                        Ime = :Ime,
+                        Prezime = :Prezime,
+                        JMBG = :JMBG,
+                        Adresa = :Adresa,
+                        Grad = :Grad,
+                        Drzava = :Drzava,
+                        KontaktTelefon = :KontaktTelefon,
+                        Pol = :Pol,
+                        DatumRodjenja = :DatumRodjenja,
+                        Aktivan = :Aktivan,
+                        Username = :Username
+                    WHERE KlijentID = :KlijentID
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "KlijentID": vars.KlijentID,
+                    "Ime": vars.data.Ime,
+                    "Prezime": vars.data.Prezime,
+                    "JMBG": vars.data.JMBG,
+                    "Adresa": vars.data.Adresa,
+                    "Grad": vars.data.Grad,
+                    "Drzava": vars.data.Drzava,
+                    "KontaktTelefon": vars.data.KontaktTelefon,
+                    "Pol": vars.data.Pol,
+                    "DatumRodjenja": vars.data.DatumRodjenja,
+                    "Aktivan": vars.data.Aktivan default 1,
+                    "Username": vars.data.Username
+                }]]]></db:input-parameters>
+				</db:update>
+
+				<ee:transform doc:name="Success Update">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Klijent ažuriran!" }]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+
+	
+				
+				
+
+					<otherwise>
+						<db:insert doc:name="Insert Klijent"
+							config-ref="Database_Config">
+							<db:sql><![CDATA[
+                            INSERT INTO Klijent(KlijentID, Ime, Prezime, JMBG, Adresa, Grad, Drzava, KontaktTelefon, Pol, DatumRodjenja, Aktivan, Username)
+                            VALUES (:KlijentID, :Ime, :Prezime, :JMBG, :Adresa, :Grad, :Drzava, :KontaktTelefon, :Pol, :DatumRodjenja, :Aktivan, :Username)
+                        ]]></db:sql>
+							<db:input-parameters><![CDATA[#[{
+                            "KlijentID": vars.KlijentID,
+                            "Ime": vars.data.Ime,
+                            "Prezime": vars.data.Prezime,
+                            "JMBG": vars.data.JMBG,
+                            "Adresa": vars.data.Adresa,
+                            "Grad": vars.data.Grad,
+                            "Drzava": vars.data.Drzava,
+                            "KontaktTelefon": vars.data.KontaktTelefon,
+                            "Pol": vars.data.Pol,
+                            "DatumRodjenja": vars.data.DatumRodjenja,
+                            "Aktivan": vars.data.Aktivan default 1,
+                            "Username": vars.data.Username
+                        }]]]></db:input-parameters>
+						</db:insert>
+
+						<ee:transform doc:name="Success Insert">
+							<ee:message>
+								<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Klijent kreiran!" }]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+					</otherwise>
+				</choice>
+			
+		
+
+		
+		<logger level="INFO"
+			message="PUT Klijent #[vars.KlijentID] executed." />
+
+	
+		<error-handler>
+			
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'Duplicate entry']">
+				<ee:transform doc:name="Duplicate Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Klijent sa ovim JMBG ili username vec postoji!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">409
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Generic Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Došlo je do greške pri kreiranju Klijenta!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+	<flow name="post-klijent">
+	
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Check existing JMBG or Username"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT KlijentID 
+            FROM Klijent 
+            WHERE JMBG = :JMBG OR Username = :Username
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+            "JMBG": vars.data.JMBG,
+            "Username": vars.data.Username
+        }]]]></db:input-parameters>
+		</db:select>
+
+	
+		<choice doc:name="Check if exists">
+			<when expression="#[sizeOf(payload) > 0]">
+				<ee:transform doc:name="Duplicate Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    error: "Klijent sa datim JMBG ili Username već postoji."
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<set-variable variableName="httpStatus" value="400"
+					doc:name="Set HTTP Status" />
+				<raise-error type="VALIDATION:DUPLICATE"
+					description="Duplicate JMBG or Username" />
+			</when>
+			<otherwise>
+				
+				<db:insert doc:name="Insert Klijent"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    INSERT INTO Klijent(Ime, Prezime, JMBG, Adresa, Grad, Drzava, KontaktTelefon, Pol, DatumRodjenja, Aktivan, Username)
+                    VALUES (:Ime, :Prezime, :JMBG, :Adresa, :Grad, :Drzava, :KontaktTelefon, :Pol, :DatumRodjenja, :Aktivan, :Username)
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{
+                    "Ime": vars.data.Ime,
+                    "Prezime": vars.data.Prezime,
+                    "JMBG": vars.data.JMBG,
+                    "Adresa": vars.data.Adresa,
+                    "Grad": vars.data.Grad,
+                    "Drzava": vars.data.Drzava,
+                    "KontaktTelefon": vars.data.KontaktTelefon,
+                    "Pol": vars.data.Pol,
+                    "DatumRodjenja": vars.data.DatumRodjenja,
+                    "Aktivan": vars.data.Aktivan,
+                    "Username": vars.data.Username
+                }]]]></db:input-parameters>
+				</db:insert>
+
+		
+				<ee:transform doc:name="Success Insert">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Klijent uspešno kreiran!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		<logger level="INFO" message="POST Klijent executed." />
+	</flow>
+
+	<flow name="post-kartica">
+	
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		<ee:transform doc:name="Normalize DatumIsteka for DB">
+			<ee:variables>
+				<ee:set-variable variableName="DatumIsteka"><![CDATA[%dw 2.0
+output application/java
+---
+(vars.data.DatumIsteka as Date {format: "yyyy-MM-dd"})
+    as String {format: "yyyy-MM-dd"}]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		<db:insert doc:name="Insert Kartica"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            INSERT INTO Kartica(BrojKartice, DatumIsteka, RacunID, TipKarticeID)
+            VALUES (:BrojKartice, :DatumIsteka, :RacunID, :TipKarticeID)
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+            "BrojKartice": vars.data.BrojKartice,
+            "DatumIsteka": vars.DatumIsteka,
+            "RacunID": vars.data.RacunID,
+            "TipKarticeID": vars.data.TipKarticeID
+        }]]]></db:input-parameters>
+		</db:insert>
+
+		<ee:transform doc:name="Success Insert">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Kartica kreirana!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		<logger level="INFO" message="POST Kartica executed." />
+
+	<error-handler>
+			<!-- Duplicate entry (409) -->
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'Duplicate entry']">
+				<ee:transform doc:name="Duplicate Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Kartica sa ovim brojem kartice već postoji!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">409
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+		
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'foreign key']">
+				<ee:transform doc:name="Foreign Key Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Ne postoji povezani RacunID ili TipKarticeID u bazi!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Generic Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Došlo je do greške pri kreiranju Kartice!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	
+	<flow name="post-racun">
+		
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:insert doc:name="Insert Racun"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            INSERT INTO Racun(BrojRacuna, Stanje, KlijentID, TipRacunaID)
+            VALUES (:BrojRacuna, :Stanje, :KlijentID, :TipRacunaID)
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+            "BrojRacuna": vars.data.BrojRacuna,
+            "Stanje": vars.data.Stanje,
+            "KlijentID": vars.data.KlijentID,
+            "TipRacunaID": vars.data.TipRacunaID
+        }]]]></db:input-parameters>
+		</db:insert>
+
+	
+		<ee:transform doc:name="Success Insert">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Racun kreiran!" }]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		<logger level="INFO" message="POST Racun executed." />
+
+		
+		<error-handler>
+			
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'Duplicate entry']">
+				<ee:transform doc:name="Duplicate Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Racun sa ovim brojem racuna već postoji!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">409
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+		
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'foreign key']">
+				<ee:transform doc:name="Foreign Key Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Ne postoji povezani KlijentID ili TipRacunaID u bazi!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+		
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Generic Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Došlo je do greške pri kreiranju racuna!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+
+
+
+
+
+
+
+	<flow name="post-tipKartice">
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		<db:insert doc:name="Insert TipKartice"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            INSERT INTO TipKartice(Naziv)
+            VALUES (:Naziv)
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+            "Naziv": vars.data.Naziv
+        }]]]></db:input-parameters>
+		</db:insert>
+
+		<ee:transform doc:name="Success Insert">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Tip kartice kreiran!"}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		<logger level="INFO" message="POST TipKartice executed." />
+
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="ANY" doc:name="Handle Errors">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var err = error.description
+---
+{
+    message: 
+        if (err contains "required key") "Fali obavezno polje!"
+        else if (err contains "expected type") "Pogrešan tip podatka!"
+        else "Došlo je do greške",
+    status: 400
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	
+	<flow name="post-tipRacuna">
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		<db:insert doc:name="Insert TipRacuna"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            INSERT INTO TipRacuna(Naziv, Aktivno)
+            VALUES (:Naziv, :Aktivno)
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+            "Naziv": vars.data.Naziv,
+            "Aktivno": vars.data.Aktivno
+        }]]]></db:input-parameters>
+		</db:insert>
+
+		<ee:transform doc:name="Success Insert">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Tip racuna kreiran!"}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		<logger level="INFO" message="POST TipRacuna executed." />
+
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="ANY" doc:name="Handle Errors">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+var err = error.description
+---
+{
+    message: 
+        if (err contains "required key") "Fali obavezno polje!"
+        else if (err contains "expected type") "Pogrešan tip podatka!"
+        else "Došlo je do greške",
+    status: 400
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	<flow name="post-transakcija">
+	
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:insert doc:name="Insert Transakcija"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            INSERT INTO Transakcija (KlijentID, RacunID, Iznos, Vrsta, Datum)
+            VALUES (:KlijentID, :RacunID, :Iznos, :Vrsta, :Datum)
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+            "KlijentID": vars.data.KlijentID,
+            "RacunID": vars.data.RacunID,
+            "Iznos": vars.data.Iznos,
+            "Vrsta": vars.data.Vrsta,
+            "Datum": vars.data.Datum
+        }]]]></db:input-parameters>
+		</db:insert>
+
+		
+		<db:select doc:name="Get Inserted ID"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[ SELECT MAX(TransakcijaID) as TransakcijaID FROM Transakcija ]]></db:sql>
+		</db:select>
+
+		
+		<ee:transform doc:name="Build Full Transakcija">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ TransakcijaID: payload[0].TransakcijaID, KlijentID: vars.data.KlijentID, RacunID: vars.data.RacunID, Iznos: vars.data.Iznos, Vrsta: vars.data.Vrsta, Datum: vars.data.Datum }]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="transakcija">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<logger level="INFO" doc:name="Log After DB Insert"
+			message="Transakcija nakon inserta u bazu: #[vars.transakcija]" />
+
+		
+		<ee:transform doc:name="Transform to XML">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/xml
+---
+order: payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+	
+		<set-variable variableName="xmlFileName"
+			value="#['C:/Users/janas/AnypointStudio/studio-workspace/banka/src/main/resources/internalERP/internalERP_' ++ now() as String {format: 'yyyyMMdd_HHmmss_SSS'} ++ '.xml']" />
+
+		
+		<file:write path="#[vars.xmlFileName]" doc:name="Write XML">
+			<file:content><![CDATA[#[payload]]]></file:content>
+		</file:write>
+		<logger level="INFO" doc:name="Log XML Write"
+			message="Transakcija upisana u XML fajl: #[payload] u #[vars.xmlFileName]" />
+
+		
+		<ee:transform doc:name="Prepare Object for ERP">
+			<ee:variables>
+				<ee:set-variable variableName="fullTrans"><![CDATA[%dw 2.0
+output application/java
+---
+{ TransakcijaID: payload.order.TransakcijaID as Number, KlijentID: payload.order.KlijentID as Number, RacunID: payload.order.RacunID as Number, Iznos: payload.order.Iznos as Number, Vrsta: payload.order.Vrsta as String, Datum: payload.order.Datum as String }]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		<logger level="INFO" doc:name="Log fullTrans before choice"
+			message="Provera varijable fullTrans pre choice: #[vars.fullTrans]" />
+
+	
+		<choice doc:name="Check For Chinese ERP">
+			<when
+				expression="#[vars.fullTrans.Vrsta == 'prenos' and vars.fullTrans.Iznos > 100]">
+				<logger level="INFO" doc:name="Log Before ChineseERP"
+					message="Transakcija za ChineseERP: #[vars.fullTrans]" />
+				<ee:transform doc:name="Prepare ChineseERP Object">
+					<ee:variables>
+						<ee:set-variable variableName="chineseTrans"><![CDATA[%dw 2.0
+output application/json
+---
+{ TransakcijaID: vars.fullTrans.TransakcijaID, KlijentID: vars.fullTrans.KlijentID, RacunID: vars.fullTrans.RacunID, Iznos: vars.fullTrans.Iznos * 2, Vrsta: vars.fullTrans.Vrsta, Datum: vars.fullTrans.Datum }]]></ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+				<set-variable variableName="chineseFileName"
+					value="#['C:/Users/janas/AnypointStudio/studio-workspace/banka/src/main/resources/chineseERP/chineseERP_' ++ now() as String {format: 'yyyyMMdd_HHmmss_SSS'} ++ '.json']" />
+				<file:write path="#[vars.chineseFileName]"
+					doc:name="Write to ChineseERP">
+					<file:content><![CDATA[#[vars.chineseTrans]]]></file:content>
+				</file:write>
+				    <db:update doc:name="Update Transakcija Iznos (ChineseERP)" config-ref="Database_Config">
+        <db:sql><![CDATA[
+            UPDATE Transakcija
+            SET Iznos = :Iznos
+            WHERE TransakcijaID = :TransakcijaID
+        ]]></db:sql>
+        <db:input-parameters><![CDATA[#[{
+            "Iznos": vars.chineseTrans.Iznos,
+            "TransakcijaID": vars.chineseTrans.TransakcijaID
+        }]]]></db:input-parameters>
+    </db:update>
+				
+				<logger level="INFO" doc:name="Log ChineseERP Write"
+					message="Transakcija uspešno upisana u ChineseERP fajl: #[vars.chineseTrans] u #[vars.chineseFileName]" />
+			</when>
+			<otherwise>
+				<logger level="INFO" doc:name="Log ChineseERP Not Applicable"
+					message="Uslovi za ChineseERP NISU ispunjeni za transakciju: #[vars.fullTrans]" />
+			</otherwise>
+		</choice>
+
+	
+		<ee:transform doc:name="Success Insert">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Transakcija kreirana!", data: vars.transakcija}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+
+
+		<logger level="INFO" message="POST Transakcija executed." />
+
+	
+	<error-handler>
+			<!-- Duplicate entry (409) -->
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'Duplicate entry']">
+				<ee:transform doc:name="Duplicate Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Transakcija sa ovim brojem kartice već postoji!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">409
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+		
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'foreign key']">
+				<ee:transform doc:name="Foreign Key Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Ne postoji povezani RacunID ili KlijentID u bazi!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Generic Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Došlo je do greške pri kreiranju Transakcije!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+	<flow name="post-zaposleni">
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		
+		  <db:select doc:name="Check existing JMBG or Username" config-ref="Database_Config">
+        <db:sql><![CDATA[
+            SELECT ZaposleniID 
+            FROM Zaposleni 
+            WHERE JMBG = :JMBG 
+        ]]></db:sql>
+        <db:input-parameters><![CDATA[#[{
+            "JMBG": vars.data.JMBG        
+        }]]]></db:input-parameters>
+    </db:select>
+		
+	<choice doc:name="Check if exists">
+        <when expression="#[sizeOf(payload) > 0]">
+            <ee:transform doc:name="Duplicate Error Response">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    error: "Zaposleni sa datim JMBG već postoji."
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+            <set-variable variableName="httpStatus" value="400" doc:name="Set HTTP Status"/>
+            <raise-error type="VALIDATION:DUPLICATE" description="Duplicate JMBG or Username"/>
+        </when>
+        <otherwise>
+         
+            <db:insert doc:name="Insert Klijent" config-ref="Database_Config">
+                <db:sql><![CDATA[
+                    INSERT INTO Zaposleni(Ime, Prezime, JMBG, Odjeljenje, KontaktTelefon)
+                    VALUES (:Ime, :Prezime, :JMBG, :Odjeljenje, :KontaktTelefon)
+                ]]></db:sql>
+                <db:input-parameters><![CDATA[#[{
+                    "Ime": vars.data.Ime,
+                    "Prezime": vars.data.Prezime,
+                    "JMBG": vars.data.JMBG,
+                    "Odjeljenje": vars.data.Odjeljenje,
+                    "KontaktTelefon": vars.data.KontaktTelefon
+                }]]]></db:input-parameters>
+            </db:insert>
+
+
+            <ee:transform doc:name="Success Insert">
+                <ee:message>
+                    <ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Zaposleni uspešno kreiran!"
+}]]></ee:set-payload>
+                </ee:message>
+            </ee:transform>
+        </otherwise>
+    </choice>
+	</flow>
+
+
+
+	<flow name="post-kredit">
+		<ee:transform doc:name="Set payload variable">
+			<ee:variables>
+				<ee:set-variable variableName="data">payload
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		<db:insert doc:name="Insert Kredit"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            INSERT INTO Kredit(Iznos, PeriodOtplate, Kamata, KlijentID, RacunID)
+            VALUES (:Iznos, :PeriodOtplate, :Kamata, :KlijentID, :RacunID)
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{
+            "Iznos": vars.data.Iznos,
+            "PeriodOtplate": vars.data.PeriodOtplate,
+            "Kamata": vars.data.Kamata,
+            "KlijentID": vars.data.KlijentID,
+            "RacunID": vars.data.RacunID
+        }]]]></db:input-parameters>
+		</db:insert>
+
+		<ee:transform doc:name="Success Insert">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{message: "Kredit kreiran!"}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		<logger level="INFO" message="POST Kredit executed." />
+<error-handler>
+			<!-- Duplicate entry (409) -->
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'Duplicate entry']">
+				<ee:transform doc:name="Duplicate Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Kartica sa ovim brojem kartice već postoji!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">409
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<!-- Foreign key (400) -->
+			<on-error-propagate enableNotifications="true"
+				type="ANY" when="#[error.description contains 'foreign key']">
+				<ee:transform doc:name="Foreign Key Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Ne postoji povezani RacunID ili KlijentID u bazi!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Generic Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ message: "Došlo je do greške pri kreiranju Kredita!" }]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">500
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	
+	<flow name="get-kartica">
+	
+		<db:select doc:name="Select Kartica"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Kartica
+        ]]></db:sql>
+		</db:select>
+
+	
+		<choice doc:name="Check if result exists">
+			<when expression="#[payload is Array and sizeOf(payload) == 0]">
+				<ee:transform doc:name="Set No Data Message">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ "message": "Trenutno nema podataka o karticama." }
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform to JSON">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+	
+		<logger level="INFO" message="Sve kartice: #[payload]" />
+	</flow>
+
+
+	<flow name="get-kredit">
+	
+		<db:select doc:name="Select Kredit"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Kredit
+        ]]></db:sql>
+		</db:select>
+
+		
+		<choice doc:name="Check if result exists">
+			<when expression="#[payload is Array and sizeOf(payload) == 0]">
+				<ee:transform doc:name="Set No Data Message">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ "message": "Trenutno nema podataka o kreditima." }
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform to JSON">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		
+		<logger level="INFO" message="Svi krediti: #[payload]" />
+	</flow>
+
+
+
+
+
+	<flow name="get-racun">
+		
+		<db:select doc:name="Select Racun"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Racun
+        ]]></db:sql>
+		</db:select>
+
+	
+		<choice doc:name="Check if result exists">
+			<when expression="#[payload is Array and sizeOf(payload) == 0]">
+				<ee:transform doc:name="Set No Data Message">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ "message": "Trenutno nema podataka o računima." }
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform to JSON">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		
+		<logger level="INFO" message="Racuni iz baze: #[payload]" />
+	</flow>
+
+	<flow name="get-tipKartice">
+	
+		<db:select doc:name="Select TipKartice"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM TipKartice
+        ]]></db:sql>
+		</db:select>
+
+	
+		<choice doc:name="Check if result exists">
+			<when expression="#[payload is Array and sizeOf(payload) == 0]">
+				<ee:transform doc:name="Set No Data Message">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ "message": "Trenutno nema podataka o tipovima kartica." }
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform to JSON">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		
+		<logger level="INFO"
+			message="Tipovi kartica iz baze: #[payload]" />
+	</flow>
+
+
+	<flow name="get-tipRacuna">
+		
+		<db:select doc:name="Select TipRacuna"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM TipRacuna
+        ]]></db:sql>
+		</db:select>
+
+		
+		<choice doc:name="Check if result exists">
+			<when expression="#[payload is Array and sizeOf(payload) == 0]">
+				<ee:transform doc:name="Set No Data Message">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ "message": "Trenutno nema podataka o tipovima računa." }
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform to JSON">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		
+		<logger level="INFO"
+			message="Tipovi racuna iz baze: #[payload]" />
+	</flow>
+
+
+
+
+	<flow name="get-zaposleni">
+		<db:select doc:name="Select Zaposleni"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Zaposleni
+        ]]></db:sql>
+		</db:select>
+
+		
+		<choice doc:name="Check if result exists">
+			<when expression="#[payload is Array and sizeOf(payload) == 0]">
+				<ee:transform doc:name="Set No Data Message">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ "message": "Trenutno nema podataka o zaposlenima u bazi." }
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform to JSON">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		<logger level="INFO" message="Zaposleni iz baze: #[payload]" />
+	</flow>
+
+
+
+	<flow name="get-transakcija">
+		
+		<db:select doc:name="Select Transakcije"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Transakcija
+        ]]></db:sql>
+		</db:select>
+
+		
+		<choice doc:name="Check if result exists">
+			<when expression="#[payload is Array and sizeOf(payload) == 0]">
+				<ee:transform doc:name="Set No Data Message">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ "message": "Ne postoji nijedna transakcija" }
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform to JSON">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		<!-- Logger za proveru -->
+		<logger level="INFO" message="Transakcije iz baze: #[payload]" />
+	</flow>
+
+
+
+
+
+
+
+	<flow name="get-klijent">
+
+		<ee:transform doc:name="Set Active Variable">
+			<ee:variables>
+				<ee:set-variable variableName="activeHeader">attributes.headers.'active'
+					default null</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		<choice doc:name="Validate Header">
+			<when
+				expression="#[vars.activeHeader != null and !(vars.activeHeader == 'true' or vars.activeHeader == 'false')]">
+				<ee:transform doc:name="Set Error Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  error: "Invalid header value",
+  message: "Header 'active' must be 'true' or 'false' if provided."
+}]]></ee:set-payload>
+						<ee:set-attributes><![CDATA[%dw 2.0
+output application/java
+---
+{
+  statusCode: 400,
+  headers: {
+    "Content-Type": "application/json"
+  }
+}]]></ee:set-attributes>
+					</ee:message>
+				</ee:transform>
+				<logger level="ERROR"
+					message="Nevalidna vrednost za header 'active': #[vars.activeHeader]" />
+				<raise-error type="VALIDATION:INVALID_ACTIVE_HEADER" />
+			</when>
+		</choice>
+
+		<choice doc:name="Choose Query">
+			<when expression="#[vars.activeHeader == 'true']">
+				<db:select doc:name="Select Active Klijenti"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    SELECT * FROM Klijent WHERE Aktivan = 1
+                ]]></db:sql>
+				</db:select>
+			</when>
+			<when expression="#[vars.activeHeader == 'false']">
+				<db:select doc:name="Select Inactive Klijenti"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    SELECT * FROM Klijent WHERE Aktivan = 0
+                ]]></db:sql>
+				</db:select>
+			</when>
+			<otherwise>
+				<db:select doc:name="Select All Klijenti"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    SELECT * FROM Klijent
+                ]]></db:sql>
+				</db:select>
+			</otherwise>
+		</choice>
+
+	
+		<choice doc:name="Check if result exists">
+			<when expression="#[payload is Array and sizeOf(payload) == 0]">
+				<ee:transform doc:name="Set No Data Message">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{ "message" : "Trenutno nema podataka o klijentima u bazi." }
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Transform to JSON">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		<logger level="INFO"
+			message="Rezultat GET /klijent: #[payload]" />
+
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="VALIDATION:INVALID_ACTIVE_HEADER">
+				<ee:transform doc:name="Bad Request Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Vrednost headera 'active' može biti 'true' ili 'false'."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">400
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+		
+		</error-handler>
+
+	</flow>
+
+
+
+
+
+	<flow name="getId-kredit">
+	
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Check Kredit Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM Kredit WHERE KreditID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="KREDIT:NOT_FOUND" />
+			</when>
+		</choice>
+
+		<db:select doc:name="Select Kredit Details"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Kredit WHERE KreditID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<ee:transform doc:name="Transform Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload[0]
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+	
+		<logger level="INFO" message="GET Kredit #[vars.id] executed." />
+
+		
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="KREDIT:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID kredita ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri preuzimanju kredita!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+
+	<flow name="getId-racun">
+	
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Check Racun Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM Racun WHERE RacunID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="RACUN:NOT_FOUND" />
+			</when>
+		</choice>
+
+	
+		<db:select doc:name="Select Racun Details"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Racun WHERE RacunID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<ee:transform doc:name="Transform Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload[0]
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		
+		<logger level="INFO" message="GET Racun #[vars.id] executed." />
+
+		
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="RACUN:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID računa ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri preuzimanju računa!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	<flow name="getId-zaposleni">
+		<!-- Uzmi ID iz URI parametra -->
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:select doc:name="Check Zaposleni Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM Zaposleni WHERE ZaposleniID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="ZAPOSLENI:NOT_FOUND" />
+			</when>
+		</choice>
+
+		
+		<db:select doc:name="Select Zaposleni Details"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Zaposleni WHERE ZaposleniID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<ee:transform doc:name="Transform Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload[0]
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		
+		<logger level="INFO"
+			message="GET Zaposleni #[vars.id] executed." />
+
+	
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="ZAPOSLENI:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID zaposlenog ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri preuzimanju zaposlenog!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+
+	<flow name="getId-tipKartice">
+		
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:select doc:name="Check TipKartice Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM TipKartice WHERE TipKarticeID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="TIPKARTICE:NOT_FOUND" />
+			</when>
+		</choice>
+
+		
+		<db:select doc:name="Select TipKartice Details"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM TipKartice WHERE TipKarticeID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<ee:transform doc:name="Transform Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload[0]
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		
+		<logger level="INFO"
+			message="GET TipKartice #[vars.id] executed." />
+
+	
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="TIPKARTICE:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID tipa kartice ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri preuzimanju tipa kartice!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+
+
+	<flow name="getId-tipRacuna">
+	
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:select doc:name="Check TipRacuna Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM TipRacuna WHERE TipRacunaID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="TIPRACUNA:NOT_FOUND" />
+			</when>
+		</choice>
+
+	
+		<db:select doc:name="Select TipRacuna Details"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM TipRacuna WHERE TipRacunaID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<ee:transform doc:name="Transform Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload[0]
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		
+		<logger level="INFO"
+			message="GET TipRacuna #[vars.id] executed." />
+
+	
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="TIPRACUNA:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID tipa računa ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri preuzimanju tipa računa!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+
+	<flow name="getId-transakcija">
+		
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Check Transakcija Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM Transakcija WHERE TransakcijaID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="TRANSAKCIJA:NOT_FOUND" />
+			</when>
+		</choice>
+
+	
+		<db:select doc:name="Select Transakcija Details"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Transakcija WHERE TransakcijaID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<ee:transform doc:name="Transform Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload[0]
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+	
+		<logger level="INFO"
+			message="GET Transakcija #[vars.id] executed." />
+
+	
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="TRANSAKCIJA:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID transakcije ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri preuzimanju transakcije!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+	<flow name="getId-kartica">
+	
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Check Kartica Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM Kartica WHERE KarticaID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="KARTICA:NOT_FOUND" />
+			</when>
+		</choice>
+
+		
+		<db:select doc:name="Select Kartica Details"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Kartica WHERE KarticaID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+	
+		<ee:transform doc:name="Transform Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload[0]
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		
+		<logger level="INFO" message="GET Kartica #[vars.id] executed." />
+
+		
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="KARTICA:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID kartice ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri preuzimanju kartice!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+
+	<flow name="getId-klijent">
+		
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Check Klijent Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM Klijent WHERE KlijentID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="KLIJENT:NOT_FOUND" />
+			</when>
+		</choice>
+
+		
+		<db:select doc:name="Select Klijent Details"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT * FROM Klijent WHERE KlijentID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<ee:transform doc:name="Transform Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload[0]
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		
+		<flow-ref name="log-klijent" doc:name="Log Klijent" />
+
+		
+		<logger level="INFO" message="GET Klijent #[vars.id] executed." />
+
+		
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="KLIJENT:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID klijenta ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri preuzimanju klijenta!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+
+
+
+
+
+
+	<flow name="log-klijent">
+		
+		<ee:transform doc:name="Prepare log entry">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output text
+---
+(now() as String) ++ " - " ++ write(payload, "application/json") ++ "\n"
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		<logger level="INFO" doc:name="Debug log entry"
+			message="#[payload]" />
+
+		
+		<file:write doc:name="Append to Log File"
+			path="C:/Users/janas/AnypointStudio/studio-workspace/banka/logs/klijenti_log.json"
+			mode="APPEND">
+			<file:content><![CDATA[#[payload]]]></file:content>
+		</file:write>
+	</flow>
+
+
+	<flow name="delete-klijent">
+		
+		<ee:transform doc:name="Set KlijentID variable">
+			<ee:variables>
+				<ee:set-variable variableName="klijentId">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:select doc:name="Check Klijent Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM Klijent WHERE KlijentID = :klijentId
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"klijentId": vars.klijentId as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="KLIJENT:NOT_FOUND" />
+			</when>
+		</choice>
+
+		<db:delete doc:name="Delete Transakcije"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM Transakcija WHERE KlijentID = :klijentId
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"klijentId": vars.klijentId as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		
+		<db:delete doc:name="Delete Krediti"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM Kredit WHERE KlijentID = :klijentId
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"klijentId": vars.klijentId as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		
+		<db:select doc:name="Select Racuni for Klijent"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT RacunID FROM Racun WHERE KlijentID = :klijentId
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"klijentId": vars.klijentId as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<foreach doc:name="Iterate Racuni">
+			<ee:transform
+				doc:name="Prepare attributes for DeleteRacun">
+				<ee:message>
+					<ee:set-attributes><![CDATA[%dw 2.0
+output application/java
+---
+{
+    uriParams: {
+        id: payload.RacunID
+    }
+}]]></ee:set-attributes>
+				</ee:message>
+			</ee:transform>
+
+			
+			<flow-ref name="delete:\racun\(id):bankaapi-config"
+				doc:name="Call Delete Racun Flow" />
+		</foreach>
+
+		
+		<db:delete doc:name="Delete Klijent"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM Klijent WHERE KlijentID = :klijentId
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"klijentId": vars.klijentId as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		
+		<ee:transform doc:name="Transform Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Klijent sa ID i svi njegovi podaci su obrisani!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		<logger level="INFO"
+			message="Klijent #[vars.klijentId] i povezani podaci obrisani iz baze." />
+
+		
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="KLIJENT:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID klijenta ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri brisanju klijenta!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+
+
+
+
+
+
+	<flow name="delete-racun">
+		
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="RacunID">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+	
+		<db:select doc:name="Check Racun Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM Racun WHERE RacunID = :RacunID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"RacunID": vars.RacunID as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="RACUN:NOT_FOUND" />
+			</when>
+		</choice>
+
+	
+		<db:delete doc:name="Delete Kartice"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM Kartica WHERE RacunID = :RacunID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"RacunID": vars.RacunID as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		
+		<db:delete doc:name="Delete Kredite"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM Kredit WHERE RacunID = :RacunID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"RacunID": vars.RacunID as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		
+		<db:delete doc:name="Delete Transakcije"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM Transakcija WHERE RacunID = :RacunID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"RacunID": vars.RacunID as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		
+		<db:delete doc:name="Delete Racun"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM Racun WHERE RacunID = :RacunID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"RacunID": vars.RacunID as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		
+		<ee:transform doc:name="Transform Message">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Racun obrisan zajedno sa povezanim karticama, kreditima i transakcijama!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		
+		<logger level="INFO"
+			message="Racun #[vars.RacunID] i svi zavisni zapisi obrisani." />
+
+		
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="RACUN:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID racuna ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri brisanju racuna!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+
+
+	<flow name="delete-tipRacuna">
+		
+		<ee:transform doc:name="Set TipRacunaID variable">
+			<ee:variables>
+				<ee:set-variable variableName="TipRacunaID">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Select Racuni for TipRacuna"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT RacunID FROM Racun WHERE TipRacunaID = :TipRacunaID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"TipRacunaID": vars.TipRacunaID as Number}]]]></db:input-parameters>
+		</db:select>
+
+	
+		<foreach doc:name="Iterate Racuni">
+			<!-- Postavi attributes.uriParams da delete:\racun flow dobije ID kao 
+				da je stigao iz requesta -->
+			<ee:transform
+				doc:name="Prepare attributes for DeleteRacun">
+				<ee:message>
+					<ee:set-attributes><![CDATA[%dw 2.0
+output application/java
+---
+{
+    uriParams: {
+        id: payload.RacunID
+    }
+}]]></ee:set-attributes>
+				</ee:message>
+			</ee:transform>
+
+			
+			<flow-ref name="delete:\racun\(id):bankaapi-config"
+				doc:name="Call Delete Racun Flow" />
+
+			<logger level="INFO"
+				message="Obrisan racun sa ID #[payload.RacunID] za TipRacuna #[vars.TipRacunaID]" />
+		</foreach>
+
+		<db:delete doc:name="Delete TipRacuna"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM TipRacuna WHERE TipRacunaID = :TipRacunaID
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"TipRacunaID": vars.TipRacunaID as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		<ee:transform doc:name="Transform Response">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "TipRacuna i svi njegovi racuni su uspesno obrisani!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		<logger level="INFO"
+			message="TipRacuna #[vars.TipRacunaID] i svi povezani racuni obrisani." />
+	</flow>
+
+	<flow name="delete-zaposleni">
+		<set-variable variableName="id"
+			value="#[attributes.uriParams.id]" />
+
+		<db:delete config-ref="Database_Config"
+			doc:name="Delete Zaposleni">
+			<db:sql><![CDATA[
+            DELETE FROM Zaposleni WHERE ZaposleniID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{ "id": vars.id }]]]></db:input-parameters>
+		</db:delete>
+
+		<ee:transform doc:name="Transform rowCount">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+if (payload is Number) payload else 0]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		<choice doc:name="Check If Deleted">
+			<when expression="#[payload == 0]">
+				<raise-error type="ZAPOSLENI:NOT_FOUND" />
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Success Delete">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Podatak je obrisan!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		<logger level="INFO" message="DELETE Zaposleni executed." />
+
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="ZAPOSLENI:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri brisanju!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	<flow name="delete-transakcija">
+		<set-variable variableName="id"
+			value="#[attributes.uriParams.id]" />
+
+		<db:delete config-ref="Database_Config"
+			doc:name="Delete Transakcija">
+			<db:sql><![CDATA[
+            DELETE FROM Transakcija WHERE TransakcijaID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{ "id": vars.id }]]]></db:input-parameters>
+		</db:delete>
+
+		<ee:transform doc:name="Transform rowCount">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+if (payload is Number) payload else 0]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		<choice doc:name="Check If Deleted">
+			<when expression="#[payload == 0]">
+				<raise-error type="TRANSAKCIJA:NOT_FOUND" />
+			</when>
+			<otherwise>
+				<ee:transform doc:name="Success Delete">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Podatak je obrisan!"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+
+		<logger level="INFO" message="DELETE Transakcija executed." />
+
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="TRANSAKCIJA:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri brisanju!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+	<flow name="delete-tipKartice">
+	
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Check TipKartice Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM TipKartice WHERE TipKarticeID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="TIPKARTICE:NOT_FOUND" />
+			</when>
+		</choice>
+
+		
+		<db:select doc:name="Select Kartice"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT KarticaID FROM Kartica WHERE TipKarticeID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		
+		<choice doc:name="Check and Delete Kartice">
+			<when expression="#[sizeOf(payload) > 0]">
+				<db:delete doc:name="Delete Kartice"
+					config-ref="Database_Config">
+					<db:sql><![CDATA[
+                    DELETE FROM Kartica WHERE TipKarticeID = :id
+                ]]></db:sql>
+					<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+				</db:delete>
+			</when>
+		</choice>
+
+		
+		<db:delete doc:name="Delete TipKartice"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM TipKartice WHERE TipKarticeID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		
+		<ee:transform doc:name="Transform Message">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Tip kartice obrisan zajedno sa povezanim karticama!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		
+		<logger level="INFO"
+			message="TipKartice #[vars.id] obrisan (povezane kartice takođe obrisane)." />
+
+		
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="TIPKARTICE:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri brisanju!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="delete-kartica">
+		
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Check Kartica Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM Kartica WHERE KarticaID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="KARTICA:NOT_FOUND" />
+			</when>
+		</choice>
+
+		
+		<db:delete doc:name="Delete Kartica"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM Kartica WHERE KarticaID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		
+		<ee:transform doc:name="Transform Message">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Kartica obrisana!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		
+		<logger level="INFO"
+			message="Kartica #[vars.id] obrisana iz baze." />
+
+		
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="KARTICA:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID kartice ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri brisanju kartice!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+	<flow name="delete-kredit">
+	
+		<ee:transform doc:name="Set ID variable">
+			<ee:variables>
+				<ee:set-variable variableName="id">attributes.uriParams.'id'
+				</ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+
+		
+		<db:select doc:name="Check Kredit Exists"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            SELECT COUNT(*) AS count FROM Kredit WHERE KreditID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:select>
+
+		<choice>
+			<when expression="#[payload[0].count == 0]">
+				<raise-error type="KREDIT:NOT_FOUND" />
+			</when>
+		</choice>
+
+		
+		<db:delete doc:name="Delete Kredit"
+			config-ref="Database_Config">
+			<db:sql><![CDATA[
+            DELETE FROM Kredit WHERE KreditID = :id
+        ]]></db:sql>
+			<db:input-parameters><![CDATA[#[{"id": vars.id as Number}]]]></db:input-parameters>
+		</db:delete>
+
+		
+		<ee:transform doc:name="Transform Message">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+  message: "Kredit obrisan!"
+}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+
+		
+		<logger level="INFO"
+			message="Kredit #[vars.id] obrisan iz baze." />
+
+		
+		<error-handler>
+			<on-error-propagate enableNotifications="true"
+				type="KREDIT:NOT_FOUND">
+				<ee:transform doc:name="Not Found Response">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Traženi ID kredita ne postoji u bazi."
+}]]></ee:set-payload>
+					</ee:message>
+					<ee:variables>
+						<ee:set-variable variableName="httpStatus">404
+						</ee:set-variable>
+					</ee:variables>
+				</ee:transform>
+			</on-error-propagate>
+
+			<on-error-propagate enableNotifications="true"
+				type="ANY">
+				<ee:transform doc:name="Transform Error">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    message: "Došlo je do greške pri brisanju kredita!",
+    status: 500
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</on-error-propagate>
+		</error-handler>
+	</flow>
+
+
+</mule>

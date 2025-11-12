@@ -1,0 +1,9 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<order>
+  <TransakcijaID>32</TransakcijaID>
+  <KlijentID>1</KlijentID>
+  <RacunID>12</RacunID>
+  <Iznos>1234.75</Iznos>
+  <Vrsta>prenos</Vrsta>
+  <Datum>2025-09-23T15:30:00+02:00</Datum>
+</order>
